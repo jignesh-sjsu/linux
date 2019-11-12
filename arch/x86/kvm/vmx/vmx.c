@@ -64,6 +64,9 @@
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
+extern u64 nr_exit;
+extern u64 arr[69];
+
 static const struct x86_cpu_id vmx_cpu_id[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_VMX),
 	{}
@@ -4588,17 +4591,22 @@ static void kvm_machine_check(void)
 static int handle_machine_check(struct kvm_vcpu *vcpu)
 {
 	/* handled by vmx_vcpu_run() */
+	
+	arr[41]++;
+	
 	return 1;
 }
 
 static int handle_exception_nmi(struct kvm_vcpu *vcpu)
-{
+{	
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct kvm_run *kvm_run = vcpu->run;
 	u32 intr_info, ex_no, error_code;
 	unsigned long cr2, rip, dr6;
 	u32 vect_info;
-
+	
+	arr[0]++;
+	
 	vect_info = vmx->idt_vectoring_info;
 	intr_info = vmx->exit_intr_info;
 
@@ -4698,12 +4706,14 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 
 static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 {
+	arr[1]++;
 	++vcpu->stat.irq_exits;
 	return 1;
 }
 
 static int handle_triple_fault(struct kvm_vcpu *vcpu)
 {
+	arr[2]++;
 	vcpu->run->exit_reason = KVM_EXIT_SHUTDOWN;
 	vcpu->mmio_needed = 0;
 	return 0;
@@ -4714,7 +4724,7 @@ static int handle_io(struct kvm_vcpu *vcpu)
 	unsigned long exit_qualification;
 	int size, in, string;
 	unsigned port;
-
+	arr[30]++;
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	string = (exit_qualification & 16) != 0;
 
@@ -4794,6 +4804,8 @@ static int handle_set_cr4(struct kvm_vcpu *vcpu, unsigned long val)
 
 static int handle_desc(struct kvm_vcpu *vcpu)
 {
+	arr[46]++;
+	arr[47]++;
 	WARN_ON(!(vcpu->arch.cr4 & X86_CR4_UMIP));
 	return kvm_emulate_instruction(vcpu, 0);
 }
@@ -4805,7 +4817,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 	int reg;
 	int err;
 	int ret;
-
+	arr[28]++;
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	cr = exit_qualification & 15;
 	reg = (exit_qualification >> 8) & 15;
@@ -4882,7 +4894,7 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qualification;
 	int dr, dr7, reg;
-
+	arr[29]++;
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	dr = exit_qualification & DEBUG_REG_ACCESS_NUM;
 
@@ -4969,28 +4981,33 @@ static void vmx_set_dr7(struct kvm_vcpu *vcpu, unsigned long val)
 }
 
 static int handle_cpuid(struct kvm_vcpu *vcpu)
-{
+{	
+	arr[10]++;
 	return kvm_emulate_cpuid(vcpu);
 }
 
 static int handle_rdmsr(struct kvm_vcpu *vcpu)
 {
+	arr[31]++;
 	return kvm_emulate_rdmsr(vcpu);
 }
 
 static int handle_wrmsr(struct kvm_vcpu *vcpu)
 {
+	arr[32]++;
 	return kvm_emulate_wrmsr(vcpu);
 }
 
 static int handle_tpr_below_threshold(struct kvm_vcpu *vcpu)
 {
+	arr[43]++;
 	kvm_apic_update_ppr(vcpu);
 	return 1;
 }
 
 static int handle_interrupt_window(struct kvm_vcpu *vcpu)
 {
+	arr[7]++;
 	exec_controls_clearbit(to_vmx(vcpu), CPU_BASED_VIRTUAL_INTR_PENDING);
 
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
@@ -5001,21 +5018,24 @@ static int handle_interrupt_window(struct kvm_vcpu *vcpu)
 
 static int handle_halt(struct kvm_vcpu *vcpu)
 {
+	arr[12]++;
 	return kvm_emulate_halt(vcpu);
 }
 
 static int handle_vmcall(struct kvm_vcpu *vcpu)
 {
-	return kvm_emulate_hypercall(vcpu);
+	arr[18]++;	return kvm_emulate_hypercall(vcpu);
 }
 
 static int handle_invd(struct kvm_vcpu *vcpu)
 {
+	arr[13]++;
 	return kvm_emulate_instruction(vcpu, 0);
 }
 
 static int handle_invlpg(struct kvm_vcpu *vcpu)
 {
+	arr[14]++;
 	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 
 	kvm_mmu_invlpg(vcpu, exit_qualification);
@@ -5025,18 +5045,20 @@ static int handle_invlpg(struct kvm_vcpu *vcpu)
 static int handle_rdpmc(struct kvm_vcpu *vcpu)
 {
 	int err;
-
+	arr[15]++;
 	err = kvm_rdpmc(vcpu);
 	return kvm_complete_insn_gp(vcpu, err);
 }
 
 static int handle_wbinvd(struct kvm_vcpu *vcpu)
 {
+	arr[54]++;
 	return kvm_emulate_wbinvd(vcpu);
 }
 
 static int handle_xsetbv(struct kvm_vcpu *vcpu)
 {
+	arr[55]++;
 	u64 new_bv = kvm_read_edx_eax(vcpu);
 	u32 index = kvm_rcx_read(vcpu);
 
@@ -5047,6 +5069,7 @@ static int handle_xsetbv(struct kvm_vcpu *vcpu)
 
 static int handle_apic_access(struct kvm_vcpu *vcpu)
 {
+	arr[44]++;
 	if (likely(fasteoi)) {
 		unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 		int access_type, offset;
@@ -5069,6 +5092,7 @@ static int handle_apic_access(struct kvm_vcpu *vcpu)
 
 static int handle_apic_eoi_induced(struct kvm_vcpu *vcpu)
 {
+	arr[45]++;
 	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	int vector = exit_qualification & 0xff;
 
@@ -5079,6 +5103,7 @@ static int handle_apic_eoi_induced(struct kvm_vcpu *vcpu)
 
 static int handle_apic_write(struct kvm_vcpu *vcpu)
 {
+	arr[56]++;
 	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	u32 offset = exit_qualification & 0xfff;
 
@@ -5095,7 +5120,7 @@ static int handle_task_switch(struct kvm_vcpu *vcpu)
 	u32 error_code = 0;
 	u16 tss_selector;
 	int reason, type, idt_v, idt_index;
-
+	arr[9]++;
 	idt_v = (vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK);
 	idt_index = (vmx->idt_vectoring_info & VECTORING_INFO_VECTOR_MASK);
 	type = (vmx->idt_vectoring_info & VECTORING_INFO_TYPE_MASK);
@@ -5149,7 +5174,7 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	unsigned long exit_qualification;
 	gpa_t gpa;
 	u64 error_code;
-
+	arr[48]++;
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 
 	/*
@@ -5196,6 +5221,7 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 	 * A nested guest cannot optimize MMIO vmexits, because we have an
 	 * nGPA here instead of the required GPA.
 	 */
+	arr[49]++;
 	gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
 	if (!is_guest_mode(vcpu) &&
 	    !kvm_io_bus_write(vcpu, KVM_FAST_MMIO_BUS, gpa, 0, NULL)) {
@@ -5207,7 +5233,7 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 }
 
 static int handle_nmi_window(struct kvm_vcpu *vcpu)
-{
+{	arr[8]++;
 	WARN_ON_ONCE(!enable_vnmi);
 	exec_controls_clearbit(to_vmx(vcpu), CPU_BASED_VIRTUAL_NMI_PENDING);
 	++vcpu->stat.nmi_window_exits;
@@ -5340,6 +5366,7 @@ static void vmx_enable_tdp(void)
  */
 static int handle_pause(struct kvm_vcpu *vcpu)
 {
+	arr[40]++;
 	if (!kvm_pause_in_guest(vcpu->kvm))
 		grow_ple_window(vcpu);
 
@@ -5359,24 +5386,29 @@ static int handle_nop(struct kvm_vcpu *vcpu)
 }
 
 static int handle_mwait(struct kvm_vcpu *vcpu)
-{
+{	
+	arr[36]++;
 	printk_once(KERN_WARNING "kvm: MWAIT instruction emulated as NOP!\n");
 	return handle_nop(vcpu);
 }
 
 static int handle_invalid_op(struct kvm_vcpu *vcpu)
 {
+	arr[57]++;
+	arr[61]++;
 	kvm_queue_exception(vcpu, UD_VECTOR);
 	return 1;
 }
 
 static int handle_monitor_trap(struct kvm_vcpu *vcpu)
 {
+	arr[37]++;
 	return 1;
 }
 
 static int handle_monitor(struct kvm_vcpu *vcpu)
 {
+	arr[39]++;
 	printk_once(KERN_WARNING "kvm: MONITOR instruction emulated as NOP!\n");
 	return handle_nop(vcpu);
 }
@@ -5390,6 +5422,7 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 	struct x86_exception e;
 	unsigned i;
 	unsigned long roots_to_free = 0;
+	arr[58]++;
 	struct {
 		u64 pcid;
 		u64 gla;
@@ -5484,7 +5517,7 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 static int handle_pml_full(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qualification;
-
+	arr[62]++;
 	trace_kvm_pml_full(vcpu->vcpu_id);
 
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
@@ -5508,6 +5541,7 @@ static int handle_pml_full(struct kvm_vcpu *vcpu)
 
 static int handle_preemption_timer(struct kvm_vcpu *vcpu)
 {
+	arr[53]++;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	if (!vmx->req_immediate_exit &&
@@ -5522,13 +5556,26 @@ static int handle_preemption_timer(struct kvm_vcpu *vcpu)
  * are overwritten by nested_vmx_setup() when nested=1.
  */
 static int handle_vmx_instruction(struct kvm_vcpu *vcpu)
-{
+{	arr[19]++;
+	arr[20]++;
+	arr[21]++;
+	arr[22]++;
+	arr[23]++;
+	arr[24]++;
+	arr[25]++;
+	arr[26]++;
+	arr[27]++;
+	arr[50]++;
+	arr[53]++;
+	arr[59]++;
+	
 	kvm_queue_exception(vcpu, UD_VECTOR);
 	return 1;
 }
 
 static int handle_encls(struct kvm_vcpu *vcpu)
 {
+	arr[60]++;
 	/*
 	 * SGX virtualization is not yet supported.  There is no software
 	 * enable bit for SGX, so we have to trap ENCLS and inject a #UD
@@ -5539,7 +5586,12 @@ static int handle_encls(struct kvm_vcpu *vcpu)
 }
 
 static int handle_unexpected_vmexit(struct kvm_vcpu *vcpu)
-{
+{	
+	arr[63]++;
+	arr[64]++;
+	arr[67]++;
+	arr[68]++;
+	
 	kvm_skip_emulated_instruction(vcpu);
 	WARN_ONCE(1, "Unexpected VM-Exit Reason = 0x%x",
 		vmcs_read32(VM_EXIT_REASON));
@@ -5605,7 +5657,7 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_PREEMPTION_TIMER]	      = handle_preemption_timer,
 	[EXIT_REASON_ENCLS]		      = handle_encls,
 	[EXIT_REASON_UMWAIT]                  = handle_unexpected_vmexit,
-	[EXIT_REASON_TPAUSE]                  = handle_unexpected_vmexit,
+	[EXIT_REASON_TPAUSE]	                  = handle_unexpected_vmexit,
 };
 
 static const int kvm_vmx_max_exit_handlers =
@@ -5853,11 +5905,16 @@ void dump_vmcs(void)
  * The guest has exited.  See if we can fix it or if we need userspace
  * assistance.
  */
+
 static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exit_reason = vmx->exit_reason;
 	u32 vectoring_info = vmx->idt_vectoring_info;
+	nr_exit++;
+	arr[exit_reason]++;
+	printk(KERN_INFO "sexit reason irq: %d\n",
+				   exit_reason);
 
 	trace_kvm_exit(exit_reason, vcpu, KVM_ISA_VMX);
 
