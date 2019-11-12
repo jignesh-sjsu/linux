@@ -24,6 +24,11 @@
 #include "trace.h"
 #include "pmu.h"
 
+u64 nr_exit =0;
+EXPORT_SYMBOL(nr_exit);
+u64 arr[69]={0};
+EXPORT_SYMBOL(arr);
+
 static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 {
 	int feature_bit = 0;
@@ -1019,16 +1024,47 @@ out:
 }
 EXPORT_SYMBOL_GPL(kvm_cpuid);
 
+
 int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
 	u32 eax, ebx, ecx, edx;
-
+	
 	if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
 		return 1;
 
 	eax = kvm_rax_read(vcpu);
 	ecx = kvm_rcx_read(vcpu);
-	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
+
+	if(eax == 0x4FFFFFFF)
+	{
+		eax = nr_exit;
+		kvm_rax_write(vcpu, eax);
+		kvm_rbx_write(vcpu, ebx);
+		kvm_rcx_write(vcpu, ecx);
+		kvm_rdx_write(vcpu, edx);
+	} else if(eax == 0x4FFFFFFD) {
+		if(ecx == 35 || ecx == 38 || ecx == 42 || ecx == 65 || ecx >= 69) {
+			eax = 0x00000000;
+			ebx = 0x00000000;
+			ecx = 0x00000000;
+			edx = 0xffffffff;
+		} else if (ecx == 3 || ecx == 4 || ecx == 5 || ecx == 6 || ecx == 11 || ecx == 16 || ecx == 17 || ecx == 33 || ecx == 34 || ecx == 51 || ecx == 61 ) {
+			eax = 0x00000000;
+			ebx = 0x00000000;
+			ecx = 0x00000000;
+			edx = 0x00000000;
+		} else {
+			eax = arr[ecx];			
+		}
+		kvm_rax_write(vcpu, eax);
+		kvm_rbx_write(vcpu, ebx);
+		kvm_rcx_write(vcpu, ecx);
+		kvm_rdx_write(vcpu, edx);
+	}
+	else{
+		kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
+	}
+	//kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
 	kvm_rax_write(vcpu, eax);
 	kvm_rbx_write(vcpu, ebx);
 	kvm_rcx_write(vcpu, ecx);
