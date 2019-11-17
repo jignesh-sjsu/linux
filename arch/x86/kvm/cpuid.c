@@ -24,10 +24,10 @@
 #include "trace.h"
 #include "pmu.h"
 
-u64 nr_exit =0;
-EXPORT_SYMBOL(nr_exit);
-u64 arr[69]={0};
-EXPORT_SYMBOL(arr);
+u64 total_exit =0;
+EXPORT_SYMBOL(total_exit);
+u64 single_exit_array[69]={0};
+EXPORT_SYMBOL(single_exit_array);
 
 static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 {
@@ -1028,7 +1028,8 @@ EXPORT_SYMBOL_GPL(kvm_cpuid);
 int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
 	u32 eax, ebx, ecx, edx;
-	
+	eax = ebx = ecx = edx = 0;
+
 	if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
 		return 1;
 
@@ -1037,7 +1038,7 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 
 	if(eax == 0x4FFFFFFF)
 	{
-		eax = nr_exit;
+		eax = total_exit;
 		kvm_rax_write(vcpu, eax);
 		kvm_rbx_write(vcpu, ebx);
 		kvm_rcx_write(vcpu, ecx);
@@ -1054,17 +1055,15 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 			ecx = 0x00000000;
 			edx = 0x00000000;
 		} else {
-			eax = arr[ecx];			
+			eax = single_exit_array[ecx];
 		}
 		kvm_rax_write(vcpu, eax);
 		kvm_rbx_write(vcpu, ebx);
 		kvm_rcx_write(vcpu, ecx);
 		kvm_rdx_write(vcpu, edx);
-	}
-	else{
+	}else{
 		kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
 	}
-	//kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
 	kvm_rax_write(vcpu, eax);
 	kvm_rbx_write(vcpu, ebx);
 	kvm_rcx_write(vcpu, ecx);
