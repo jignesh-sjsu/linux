@@ -66,7 +66,6 @@ MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
 extern atomic_t total_exit;
-extern atomic_t reason_exit;
 extern atomic_t start_time;
 extern atomic_t end_time;
 extern atomic_t diff_time;
@@ -6312,7 +6311,6 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	u32 exit_reason = vmx->exit_reason;
 	u32 vectoring_info = vmx->idt_vectoring_info;
 	atomic_inc(&total_exit);
-	atomic_inc(&reason_exit);
 	atomic_set(&start_time, rdtsc());
 	int ret;
 
