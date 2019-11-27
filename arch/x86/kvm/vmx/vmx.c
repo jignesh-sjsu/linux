@@ -71,6 +71,8 @@ extern atomic_t start_time;
 extern atomic_t end_time;
 extern atomic_t diff_time;
 extern atomic_t single_exit_array[69];
+extern atomic_t s_time;
+extern atomic_t e_time;
 extern atomic_t single_exit_diff[69];
 
 static const struct x86_cpu_id vmx_cpu_id[] = {
@@ -4597,9 +4599,11 @@ static void kvm_machine_check(void)
 static int handle_machine_check(struct kvm_vcpu *vcpu)
 {
 	/* handled by vmx_vcpu_run() */
-	
+	atomic_set(&s_time, rdtsc());
 	atomic_inc(&single_exit_array[41]);
-	
+	atomic_set(&e_time, rdtsc());
+	atomic_sub(atomic_read(&s_time), &e_time);
+	atomic_set(&single_exit_diff[41], atomic_read(&e_time));
 	return 1;
 }
 
@@ -5922,7 +5926,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	atomic_inc(&reason_exit);
 	atomic_set(&start_time, rdtsc());
 	int ret;
-	
+
 	trace_kvm_exit(exit_reason, vcpu, KVM_ISA_VMX);
 
 	/*
