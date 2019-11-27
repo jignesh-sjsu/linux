@@ -4716,8 +4716,12 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 
 static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&s_time, rdtsc());
 	atomic_inc(&single_exit_array[1]);
 	++vcpu->stat.irq_exits;
+	atomic_set(&e_time, rdtsc());
+	atomic_sub(atomic_read(&s_time), &e_time);
+	atomic_set(&single_exit_diff[1], atomic_read(&e_time));
 	return 1;
 }
 
