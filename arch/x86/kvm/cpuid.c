@@ -27,8 +27,6 @@
 
 atomic_t total_exit = ATOMIC_INIT(0);
 EXPORT_SYMBOL(total_exit);
-atomic_t reason_exit = ATOMIC_INIT(0);
-EXPORT_SYMBOL(reason_exit);
 atomic_t diff_time = ATOMIC_INIT(0);
 EXPORT_SYMBOL(diff_time);
 u64 time = 0;
@@ -1057,7 +1055,6 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 	if(eax == 0x4FFFFFFF)
 	{
 		eax = atomic_read(&total_exit);
-		ebx = atomic_read(&reason_exit);		
 		kvm_rax_write(vcpu, eax);
 		kvm_rbx_write(vcpu, ebx);
 		kvm_rcx_write(vcpu, ecx);
