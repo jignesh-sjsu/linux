@@ -18,14 +18,24 @@
 #include <asm/processor.h>
 #include <asm/user.h>
 #include <asm/fpu/xstate.h>
+#include <asm/atomic.h>
 #include "cpuid.h"
 #include "lapic.h"
 #include "mmu.h"
 #include "trace.h"
 #include "pmu.h"
 
-u64 total_exit =0;
+atomic_t total_exit = ATOMIC_INIT(0);
 EXPORT_SYMBOL(total_exit);
+atomic_t reason_exit = ATOMIC_INIT(0);
+EXPORT_SYMBOL(reason_exit);
+atomic_t diff_time = ATOMIC_INIT(0);
+EXPORT_SYMBOL(diff_time);
+u64 time = 0;
+u64 start_time = 0;
+EXPORT_SYMBOL(start_time);
+u64 end_time = 0;
+EXPORT_SYMBOL(end_time);
 u64 single_exit_array[69]={0};
 EXPORT_SYMBOL(single_exit_array);
 
@@ -1029,7 +1039,7 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
 	u32 eax, ebx, ecx, edx;
 	eax = ebx = ecx = edx = 0;
-
+	u64 diff = 0;
 	if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
 		return 1;
 
@@ -1038,7 +1048,8 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 
 	if(eax == 0x4FFFFFFF)
 	{
-		eax = total_exit;
+		eax = atomic_read(&total_exit);
+		ebx = atomic_read(&reason_exit);		
 		kvm_rax_write(vcpu, eax);
 		kvm_rbx_write(vcpu, ebx);
 		kvm_rcx_write(vcpu, ecx);
@@ -1061,7 +1072,16 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 		kvm_rbx_write(vcpu, ebx);
 		kvm_rcx_write(vcpu, ecx);
 		kvm_rdx_write(vcpu, edx);
-	}else{
+	} else if(eax == 0x4FFFFFFE) {
+		diff = atomic_read(&diff_time);
+		time = time + diff;
+		ecx = time;
+		ebx = (time >> 32);
+		kvm_rax_write(vcpu, eax);
+		kvm_rbx_write(vcpu, ebx);
+		kvm_rcx_write(vcpu, ecx);
+		kvm_rdx_write(vcpu, edx);
+	} else{
 		kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
 	}
 	kvm_rax_write(vcpu, eax);
