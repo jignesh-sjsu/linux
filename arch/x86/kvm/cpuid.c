@@ -36,7 +36,7 @@ u64 start_time = 0;
 EXPORT_SYMBOL(start_time);
 u64 end_time = 0;
 EXPORT_SYMBOL(end_time);
-u64 single_exit_array[69]={0};
+atomic_t single_exit_array[69]=ATOMIC_INIT(0);
 EXPORT_SYMBOL(single_exit_array);
 
 static u32 xstate_required_size(u64 xstate_bv, bool compacted)
@@ -1066,7 +1066,7 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 			ecx = 0x00000000;
 			edx = 0x00000000;
 		} else {
-			eax = single_exit_array[ecx];
+			eax = atomic_read(&single_exit_array[ecx]);
 		}
 		kvm_rax_write(vcpu, eax);
 		kvm_rbx_write(vcpu, ebx);
