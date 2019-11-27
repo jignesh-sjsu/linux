@@ -5288,6 +5288,8 @@ static int handle_xsetbv(struct kvm_vcpu *vcpu)
 
 static int handle_apic_access(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&e_time[44], rdtsc());
+	int ret;
 	atomic_inc(&single_exit_array[44]);
 	if (likely(fasteoi)) {
 		unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
@@ -5303,36 +5305,54 @@ static int handle_apic_access(struct kvm_vcpu *vcpu)
 		if ((access_type == TYPE_LINEAR_APIC_INST_WRITE) &&
 		    (offset == APIC_EOI)) {
 			kvm_lapic_set_eoi(vcpu);
-			return kvm_skip_emulated_instruction(vcpu);
+			ret = kvm_skip_emulated_instruction(vcpu);
+			atomic_set(&e_time[44], rdtsc());
+			atomic_sub(atomic_read(&s_time[44]), &e_time[44]);
+			atomic_set(&single_exit_diff[44], atomic_read(&e_time[44]));
+			return ret;		
 		}
 	}
-	return kvm_emulate_instruction(vcpu, 0);
+	ret = kvm_emulate_instruction(vcpu, 0);
+	atomic_set(&e_time[44], rdtsc());
+	atomic_sub(atomic_read(&s_time[44]), &e_time[44]);
+	atomic_set(&single_exit_diff[44], atomic_read(&e_time[44]));
+	return ret;
 }
 
 static int handle_apic_eoi_induced(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&e_time[45], rdtsc());
 	atomic_inc(&single_exit_array[45]);
 	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	int vector = exit_qualification & 0xff;
 
 	/* EOI-induced VM exit is trap-like and thus no need to adjust IP */
 	kvm_apic_set_eoi_accelerated(vcpu, vector);
+	atomic_set(&e_time[45], rdtsc());
+	atomic_sub(atomic_read(&s_time[45]), &e_time[45]);
+	atomic_set(&single_exit_diff[45], atomic_read(&e_time[45]));
 	return 1;
 }
 
 static int handle_apic_write(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&e_time[56], rdtsc());
 	atomic_inc(&single_exit_array[56]);
 	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	u32 offset = exit_qualification & 0xfff;
 
 	/* APIC-write VM exit is trap-like and thus no need to adjust IP */
 	kvm_apic_write_nodecode(vcpu, offset);
+	atomic_set(&e_time[56], rdtsc());
+	atomic_sub(atomic_read(&s_time[56]), &e_time[56]);
+	atomic_set(&single_exit_diff[56], atomic_read(&e_time[56]));
 	return 1;
 }
 
 static int handle_task_switch(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&e_time[9], rdtsc());
+	int ret;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long exit_qualification;
 	bool has_error_code = false;
@@ -5383,13 +5403,19 @@ static int handle_task_switch(struct kvm_vcpu *vcpu)
 	 * TODO: What about debug traps on tss switch?
 	 *       Are we supposed to inject them and update dr6?
 	 */
-	return kvm_task_switch(vcpu, tss_selector,
+	ret = kvm_task_switch(vcpu, tss_selector,
 			       type == INTR_TYPE_SOFT_INTR ? idt_index : -1,
 			       reason, has_error_code, error_code);
+	atomic_set(&e_time[9], rdtsc());
+	atomic_sub(atomic_read(&s_time[9]), &e_time[9]);
+	atomic_set(&single_exit_diff[9], atomic_read(&e_time[9]));
+	return ret;
 }
 
 static int handle_ept_violation(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&e_time[48], rdtsc());
+	int ret;
 	unsigned long exit_qualification;
 	gpa_t gpa;
 	u64 error_code;
@@ -5429,11 +5455,17 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	       PFERR_GUEST_FINAL_MASK : PFERR_GUEST_PAGE_MASK;
 
 	vcpu->arch.exit_qualification = exit_qualification;
-	return kvm_mmu_page_fault(vcpu, gpa, error_code, NULL, 0);
+	ret = kvm_mmu_page_fault(vcpu, gpa, error_code, NULL, 0);
+	atomic_set(&e_time[48], rdtsc());
+	atomic_sub(atomic_read(&s_time[48]), &e_time[48]);
+	atomic_set(&single_exit_diff[48], atomic_read(&e_time[48]));
+	return ret;
 }
 
 static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&e_time[49], rdtsc());
+	int ret;
 	gpa_t gpa;
 
 	/*
@@ -5445,19 +5477,31 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 	if (!is_guest_mode(vcpu) &&
 	    !kvm_io_bus_write(vcpu, KVM_FAST_MMIO_BUS, gpa, 0, NULL)) {
 		trace_kvm_fast_mmio(gpa);
-		return kvm_skip_emulated_instruction(vcpu);
+		ret = kvm_skip_emulated_instruction(vcpu);
+		atomic_set(&e_time[49], rdtsc());
+		atomic_sub(atomic_read(&s_time[49]), &e_time[49]);
+		atomic_set(&single_exit_diff[49], atomic_read(&e_time[49]));
+		return ret;
 	}
 
-	return kvm_mmu_page_fault(vcpu, gpa, PFERR_RSVD_MASK, NULL, 0);
+	ret = kvm_mmu_page_fault(vcpu, gpa, PFERR_RSVD_MASK, NULL, 0);
+	atomic_set(&e_time[49], rdtsc());
+	atomic_sub(atomic_read(&s_time[49]), &e_time[49]);
+	atomic_set(&single_exit_diff[49], atomic_read(&e_time[49]));
+	return ret;
 }
 
 static int handle_nmi_window(struct kvm_vcpu *vcpu)
-{	atomic_inc(&single_exit_array[8]);
+{
+	atomic_set(&e_time[8], rdtsc());
+	atomic_inc(&single_exit_array[8]);
 	WARN_ON_ONCE(!enable_vnmi);
 	exec_controls_clearbit(to_vmx(vcpu), CPU_BASED_VIRTUAL_NMI_PENDING);
 	++vcpu->stat.nmi_window_exits;
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
-
+	atomic_set(&e_time[8], rdtsc());
+	atomic_sub(atomic_read(&s_time[8]), &e_time[8]);
+	atomic_set(&single_exit_diff[8], atomic_read(&e_time[8]));
 	return 1;
 }
 
@@ -5585,6 +5629,8 @@ static void vmx_enable_tdp(void)
  */
 static int handle_pause(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&s_time[40], rdtsc());
+	int ret;
 	atomic_inc(&single_exit_array[40]);
 	if (!kvm_pause_in_guest(vcpu->kvm))
 		grow_ple_window(vcpu);
@@ -5596,7 +5642,11 @@ static int handle_pause(struct kvm_vcpu *vcpu)
 	 * so the vcpu must be CPL=0 if it gets a PAUSE exit.
 	 */
 	kvm_vcpu_on_spin(vcpu, true);
-	return kvm_skip_emulated_instruction(vcpu);
+	ret = kvm_skip_emulated_instruction(vcpu);
+	atomic_set(&e_time[40], rdtsc());
+	atomic_sub(atomic_read(&s_time[40]), &e_time[40]);
+	atomic_set(&single_exit_diff[40], atomic_read(&e_time[40]));
+	return ret;
 }
 
 static int handle_nop(struct kvm_vcpu *vcpu)
@@ -5606,34 +5656,60 @@ static int handle_nop(struct kvm_vcpu *vcpu)
 
 static int handle_mwait(struct kvm_vcpu *vcpu)
 {	
+	atomic_set(&s_time[36], rdtsc());
+	int ret;
 	atomic_inc(&single_exit_array[36]);
 	printk_once(KERN_WARNING "kvm: MWAIT instruction emulated as NOP!\n");
-	return handle_nop(vcpu);
+	ret = handle_nop(vcpu);
+	atomic_set(&e_time[36], rdtsc());
+	atomic_sub(atomic_read(&s_time[36]), &e_time[36]);
+	atomic_set(&single_exit_diff[36], atomic_read(&e_time[36]));
+	return ret;
 }
 
 static int handle_invalid_op(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&s_time[57], rdtsc());
+	atomic_set(&s_time[61], rdtsc());
 	atomic_inc(&single_exit_array[57]);
 	atomic_inc(&single_exit_array[61]);
 	kvm_queue_exception(vcpu, UD_VECTOR);
+	atomic_set(&e_time[57], rdtsc());
+	atomic_set(&e_time[61], rdtsc());
+	atomic_sub(atomic_read(&s_time[57]), &e_time[57]);
+	atomic_sub(atomic_read(&s_time[61]), &e_time[61]);
+	atomic_set(&single_exit_diff[57], atomic_read(&e_time[57]));
+	atomic_set(&single_exit_diff[61], atomic_read(&e_time[61]));
 	return 1;
 }
 
 static int handle_monitor_trap(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&s_time[37], rdtsc());
 	atomic_inc(&single_exit_array[37]);
+	atomic_set(&e_time[37], rdtsc());
+	atomic_sub(atomic_read(&s_time[37]), &e_time[37]);
+	atomic_set(&single_exit_diff[37], atomic_read(&e_time[37]));
 	return 1;
 }
 
 static int handle_monitor(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&s_time[39], rdtsc());
+	int ret;
 	atomic_inc(&single_exit_array[39]);
 	printk_once(KERN_WARNING "kvm: MONITOR instruction emulated as NOP!\n");
-	return handle_nop(vcpu);
+	ret = handle_nop(vcpu);
+	atomic_set(&e_time[39], rdtsc());
+	atomic_sub(atomic_read(&s_time[39]), &e_time[39]);
+	atomic_set(&single_exit_diff[39], atomic_read(&e_time[39]));
+	return ret;
 }
 
 static int handle_invpcid(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&s_time[58], rdtsc());
+	int ret;
 	u32 vmx_instruction_info;
 	unsigned long type;
 	bool pcid_enabled;
@@ -5649,6 +5725,9 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 
 	if (!guest_cpuid_has(vcpu, X86_FEATURE_INVPCID)) {
 		kvm_queue_exception(vcpu, UD_VECTOR);
+		atomic_set(&e_time[58], rdtsc());
+		atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
+		atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
 		return 1;
 	}
 
@@ -5657,6 +5736,9 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 
 	if (type > 3) {
 		kvm_inject_gp(vcpu, 0);
+		atomic_set(&e_time[58], rdtsc());
+		atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
+		atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
 		return 1;
 	}
 
@@ -5665,16 +5747,25 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 	 */
 	if (get_vmx_mem_address(vcpu, vmcs_readl(EXIT_QUALIFICATION),
 				vmx_instruction_info, false,
-				sizeof(operand), &gva))
+				sizeof(operand), &gva)){
+		atomic_set(&e_time[58], rdtsc());
+		atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
+		atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
 		return 1;
-
+	}
 	if (kvm_read_guest_virt(vcpu, gva, &operand, sizeof(operand), &e)) {
 		kvm_inject_page_fault(vcpu, &e);
+		atomic_set(&e_time[58], rdtsc());
+		atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
+		atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
 		return 1;
 	}
 
 	if (operand.pcid >> 12 != 0) {
 		kvm_inject_gp(vcpu, 0);
+		atomic_set(&e_time[58], rdtsc());
+		atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
+		atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
 		return 1;
 	}
 
@@ -5685,14 +5776,23 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 		if ((!pcid_enabled && (operand.pcid != 0)) ||
 		    is_noncanonical_address(operand.gla, vcpu)) {
 			kvm_inject_gp(vcpu, 0);
+			atomic_set(&e_time[58], rdtsc());
+			atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
+			atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
 			return 1;
 		}
 		kvm_mmu_invpcid_gva(vcpu, operand.gla, operand.pcid);
-		return kvm_skip_emulated_instruction(vcpu);
-
+		ret = kvm_skip_emulated_instruction(vcpu);
+		atomic_set(&e_time[58], rdtsc());
+		atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
+		atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
+		return ret;
 	case INVPCID_TYPE_SINGLE_CTXT:
 		if (!pcid_enabled && (operand.pcid != 0)) {
 			kvm_inject_gp(vcpu, 0);
+			atomic_set(&e_time[58], rdtsc());
+			atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
+			atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
 			return 1;
 		}
 
@@ -5712,9 +5812,11 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 		 * given PCID, then nothing needs to be done here because a
 		 * resync will happen anyway before switching to any other CR3.
 		 */
-
-		return kvm_skip_emulated_instruction(vcpu);
-
+		ret = kvm_skip_emulated_instruction(vcpu);
+		atomic_set(&e_time[58], rdtsc());
+		atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
+		atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
+		return ret;
 	case INVPCID_TYPE_ALL_NON_GLOBAL:
 		/*
 		 * Currently, KVM doesn't mark global entries in the shadow
@@ -5726,8 +5828,11 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 		/* fall-through */
 	case INVPCID_TYPE_ALL_INCL_GLOBAL:
 		kvm_mmu_unload(vcpu);
-		return kvm_skip_emulated_instruction(vcpu);
-
+		ret = kvm_skip_emulated_instruction(vcpu);
+		atomic_set(&e_time[58], rdtsc());
+		atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
+		atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
+		return ret;
 	default:
 		BUG(); /* We have already checked above that type <= 3 */
 	}
@@ -5735,6 +5840,7 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 
 static int handle_pml_full(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&s_time[62], rdtsc());
 	unsigned long exit_qualification;
 	atomic_inc(&single_exit_array[62]);
 	trace_kvm_pml_full(vcpu->vcpu_id);
@@ -5755,18 +5861,25 @@ static int handle_pml_full(struct kvm_vcpu *vcpu)
 	 * PML buffer already flushed at beginning of VMEXIT. Nothing to do
 	 * here.., and there's no userspace involvement needed for PML.
 	 */
+	atomic_set(&e_time[62], rdtsc());
+	atomic_sub(atomic_read(&s_time[62]), &e_time[62]);
+	atomic_set(&single_exit_diff[62], atomic_read(&e_time[62]));
 	return 1;
 }
 
 static int handle_preemption_timer(struct kvm_vcpu *vcpu)
 {
-	atomic_inc(&single_exit_array[53]);
+	atomic_set(&s_time[52], rdtsc());
+	atomic_inc(&single_exit_array[52]);
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	if (!vmx->req_immediate_exit &&
 	    !unlikely(vmx->loaded_vmcs->hv_timer_soft_disabled))
 		kvm_lapic_expired_hv_timer(vcpu);
 
+	atomic_set(&e_time[52], rdtsc());
+	atomic_sub(atomic_read(&s_time[52]), &e_time[52]);
+	atomic_set(&single_exit_diff[52], atomic_read(&e_time[52]));
 	return 1;
 }
 
@@ -5776,6 +5889,18 @@ static int handle_preemption_timer(struct kvm_vcpu *vcpu)
  */
 static int handle_vmx_instruction(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&s_time[19], rdtsc());
+	atomic_set(&s_time[20], rdtsc());
+	atomic_set(&s_time[21], rdtsc());
+	atomic_set(&s_time[22], rdtsc());
+	atomic_set(&s_time[23], rdtsc());
+	atomic_set(&s_time[24], rdtsc());
+	atomic_set(&s_time[25], rdtsc());
+	atomic_set(&s_time[26], rdtsc());
+	atomic_set(&s_time[27], rdtsc());
+	atomic_set(&s_time[50], rdtsc());
+	atomic_set(&s_time[53], rdtsc());
+	atomic_set(&s_time[59], rdtsc());
 	atomic_inc(&single_exit_array[19]);
 	atomic_inc(&single_exit_array[20]);
 	atomic_inc(&single_exit_array[21]);
@@ -5789,11 +5914,48 @@ static int handle_vmx_instruction(struct kvm_vcpu *vcpu)
 	atomic_inc(&single_exit_array[53]);
 	atomic_inc(&single_exit_array[59]);
 	kvm_queue_exception(vcpu, UD_VECTOR);
+	atomic_set(&e_time[19], rdtsc());
+	atomic_set(&e_time[20], rdtsc());
+	atomic_set(&e_time[21], rdtsc());
+	atomic_set(&e_time[22], rdtsc());
+	atomic_set(&e_time[23], rdtsc());
+	atomic_set(&e_time[24], rdtsc());
+	atomic_set(&e_time[25], rdtsc());
+	atomic_set(&e_time[26], rdtsc());
+	atomic_set(&e_time[27], rdtsc());
+	atomic_set(&e_time[50], rdtsc());
+	atomic_set(&e_time[53], rdtsc());
+	atomic_set(&e_time[59], rdtsc());
+	atomic_sub(atomic_read(&s_time[19]), &e_time[19]);
+	atomic_sub(atomic_read(&s_time[20]), &e_time[20]);
+	atomic_sub(atomic_read(&s_time[21]), &e_time[21]);
+	atomic_sub(atomic_read(&s_time[22]), &e_time[22]);
+	atomic_sub(atomic_read(&s_time[23]), &e_time[23]);
+	atomic_sub(atomic_read(&s_time[24]), &e_time[24]);
+	atomic_sub(atomic_read(&s_time[25]), &e_time[25]);
+	atomic_sub(atomic_read(&s_time[26]), &e_time[26]);
+	atomic_sub(atomic_read(&s_time[27]), &e_time[27]);
+	atomic_sub(atomic_read(&s_time[50]), &e_time[50]);
+	atomic_sub(atomic_read(&s_time[53]), &e_time[53]);
+	atomic_sub(atomic_read(&s_time[59]), &e_time[59]);
+	atomic_set(&single_exit_diff[19], atomic_read(&e_time[19]));
+	atomic_set(&single_exit_diff[20], atomic_read(&e_time[20]));
+	atomic_set(&single_exit_diff[21], atomic_read(&e_time[21]));
+	atomic_set(&single_exit_diff[22], atomic_read(&e_time[22]));
+	atomic_set(&single_exit_diff[23], atomic_read(&e_time[23]));
+	atomic_set(&single_exit_diff[24], atomic_read(&e_time[24]));
+	atomic_set(&single_exit_diff[25], atomic_read(&e_time[25]));
+	atomic_set(&single_exit_diff[26], atomic_read(&e_time[26]));
+	atomic_set(&single_exit_diff[27], atomic_read(&e_time[27]));
+	atomic_set(&single_exit_diff[50], atomic_read(&e_time[50]));
+	atomic_set(&single_exit_diff[53], atomic_read(&e_time[53]));
+	atomic_set(&single_exit_diff[59], atomic_read(&e_time[59]));
 	return 1;
 }
 
 static int handle_encls(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&s_time[60], rdtsc());
 	atomic_inc(&single_exit_array[60]);
 	/*
 	 * SGX virtualization is not yet supported.  There is no software
@@ -5801,11 +5963,18 @@ static int handle_encls(struct kvm_vcpu *vcpu)
 	 * to prevent the guest from executing ENCLS.
 	 */
 	kvm_queue_exception(vcpu, UD_VECTOR);
+	atomic_set(&e_time[60], rdtsc());
+	atomic_sub(atomic_read(&s_time[60]), &e_time[60]);
+	atomic_set(&single_exit_diff[60], atomic_read(&e_time[60]));
 	return 1;
 }
 
 static int handle_unexpected_vmexit(struct kvm_vcpu *vcpu)
 {	
+	atomic_set(&s_time[63], rdtsc());
+	atomic_set(&s_time[64], rdtsc());
+	atomic_set(&s_time[67], rdtsc());
+	atomic_set(&s_time[68], rdtsc());
 	atomic_inc(&single_exit_array[63]);
 	atomic_inc(&single_exit_array[64]);
 	atomic_inc(&single_exit_array[67]);
@@ -5814,6 +5983,18 @@ static int handle_unexpected_vmexit(struct kvm_vcpu *vcpu)
 	kvm_skip_emulated_instruction(vcpu);
 	WARN_ONCE(1, "Unexpected VM-Exit Reason = 0x%x",
 		vmcs_read32(VM_EXIT_REASON));
+	atomic_set(&e_time[63], rdtsc());
+	atomic_set(&e_time[64], rdtsc());
+	atomic_set(&e_time[67], rdtsc());
+	atomic_set(&e_time[68], rdtsc());
+	atomic_sub(atomic_read(&s_time[63]), &e_time[63]);
+	atomic_sub(atomic_read(&s_time[64]), &e_time[64]);
+	atomic_sub(atomic_read(&s_time[67]), &e_time[67]);
+	atomic_sub(atomic_read(&s_time[68]), &e_time[68]);
+	atomic_set(&single_exit_diff[63], atomic_read(&e_time[63]));
+	atomic_set(&single_exit_diff[64], atomic_read(&e_time[64]));
+	atomic_set(&single_exit_diff[67], atomic_read(&e_time[67]));
+	atomic_set(&single_exit_diff[68], atomic_read(&e_time[68]));
 	return 1;
 }
 
