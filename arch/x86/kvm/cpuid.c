@@ -36,8 +36,14 @@ atomic_t start_time = ATOMIC_INIT(0);
 EXPORT_SYMBOL(start_time);
 atomic_t end_time = ATOMIC_INIT(0);
 EXPORT_SYMBOL(end_time);
-atomic_t single_exit_array[69]=ATOMIC_INIT(0);
+atomic_t single_exit_array[69] = ATOMIC_INIT(0);
 EXPORT_SYMBOL(single_exit_array);
+atomic_t s_time = ATOMIC_INIT(0);
+EXPORT_SYMBOL(s_time);
+atomic_t e_time = ATOMIC_INIT(0);
+EXPORT_SYMBOL(e_time);
+atomic_t single_exit_diff[69] = ATOMIC_INIT(0);
+EXPORT_SYMBOL(single_exit_diff);
 
 static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 {
@@ -1077,6 +1083,27 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 		time = time + diff;
 		ecx = time;
 		ebx = (time >> 32);
+		kvm_rax_write(vcpu, eax);
+		kvm_rbx_write(vcpu, ebx);
+		kvm_rcx_write(vcpu, ecx);
+		kvm_rdx_write(vcpu, edx);
+	}else if(eax == 0x4FFFFFFC) {
+		if(ecx == 35 || ecx == 38 || ecx == 42 || ecx == 65 || ecx >= 69) {
+			eax = 0x00000000;
+			ebx = 0x00000000;
+			ecx = 0x00000000;
+			edx = 0xffffffff;
+		} else if (ecx == 3 || ecx == 4 || ecx == 5 || ecx == 6 || ecx == 11 || ecx == 16 || ecx == 17 || ecx == 33 || ecx == 34 || ecx == 51 || ecx == 61 ) {
+			eax = 0x00000000;
+			ebx = 0x00000000;
+			ecx = 0x00000000;
+			edx = 0x00000000;
+		} else {
+			diff = atomic_read(&single_exit_diff[ecx]);
+			single_time = single_time + diff;
+			ecx = time;
+			ebx = (time >> 32);
+		}
 		kvm_rax_write(vcpu, eax);
 		kvm_rbx_write(vcpu, ebx);
 		kvm_rcx_write(vcpu, ecx);
