@@ -71,8 +71,8 @@ extern atomic_t start_time;
 extern atomic_t end_time;
 extern atomic_t diff_time;
 extern atomic_t single_exit_array[69];
-extern atomic_t s_time;
-extern atomic_t e_time;
+extern atomic_t s_time[69];
+extern atomic_t e_time[69];
 extern atomic_t single_exit_diff[69];
 
 static const struct x86_cpu_id vmx_cpu_id[] = {
@@ -4599,11 +4599,11 @@ static void kvm_machine_check(void)
 static int handle_machine_check(struct kvm_vcpu *vcpu)
 {
 	/* handled by vmx_vcpu_run() */
-	atomic_set(&s_time, rdtsc());
+	atomic_set(&s_time[41], rdtsc());
 	atomic_inc(&single_exit_array[41]);
-	atomic_set(&e_time, rdtsc());
-	atomic_sub(atomic_read(&s_time), &e_time);
-	atomic_set(&single_exit_diff[41], atomic_read(&e_time));
+	atomic_set(&e_time[41], rdtsc());
+	atomic_sub(atomic_read(&s_time[41]), &e_time[41]);
+	atomic_set(&single_exit_diff[41], atomic_read(&e_time[41]));
 	return 1;
 }
 
@@ -4716,27 +4716,32 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 
 static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 {
-	atomic_set(&s_time, rdtsc());
+	atomic_set(&s_time[1], rdtsc());
 	atomic_inc(&single_exit_array[1]);
 	++vcpu->stat.irq_exits;
-	atomic_set(&e_time, rdtsc());
-	atomic_sub(atomic_read(&s_time), &e_time);
-	atomic_set(&single_exit_diff[1], atomic_read(&e_time));
+	atomic_set(&e_time[1], rdtsc());
+	atomic_sub(atomic_read(&s_time[1]), &e_time[1]);
+	atomic_set(&single_exit_diff[1], atomic_read(&e_time[1]));
 	return 1;
 }
 
 static int handle_triple_fault(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&s_time[2], rdtsc());
 	atomic_inc(&single_exit_array[2]);
 	vcpu->run->exit_reason = KVM_EXIT_SHUTDOWN;
 	vcpu->mmio_needed = 0;
+	atomic_set(&e_time[2], rdtsc());
+	atomic_sub(atomic_read(&s_time[2]), &e_time[2]);
+	atomic_set(&single_exit_diff[2], atomic_read(&e_time[2]));
 	return 0;
 }
 
 static int handle_io(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&s_time[30], rdtsc());
 	unsigned long exit_qualification;
-	int size, in, string;
+	int size, in, string, ret;
 	unsigned port;
 	atomic_inc(&single_exit_array[30]);
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
@@ -4744,14 +4749,23 @@ static int handle_io(struct kvm_vcpu *vcpu)
 
 	++vcpu->stat.io_exits;
 
-	if (string)
-		return kvm_emulate_instruction(vcpu, 0);
+	if (string){
+		ret = kvm_emulate_instruction(vcpu, 0);
+		atomic_set(&e_time[30], rdtsc());
+		atomic_sub(atomic_read(&s_time[30]), &e_time[30]);
+		atomic_set(&single_exit_diff[30], atomic_read(&e_time[30]));
+		return ret;	
+	}
 
 	port = exit_qualification >> 16;
 	size = (exit_qualification & 7) + 1;
 	in = (exit_qualification & 8) != 0;
 
-	return kvm_fast_pio(vcpu, size, port, in);
+	ret = kvm_fast_pio(vcpu, size, port, in);
+	atomic_set(&e_time[30], rdtsc());
+	atomic_sub(atomic_read(&s_time[30]), &e_time[30]);
+	atomic_set(&single_exit_diff[30], atomic_read(&e_time[30]));
+	return ret;
 }
 
 static void
