@@ -5287,7 +5287,7 @@ static int handle_xsetbv(struct kvm_vcpu *vcpu)
 
 static int handle_apic_access(struct kvm_vcpu *vcpu)
 {
-	atomic_set(&e_time[44], rdtsc());
+	atomic_set(&s_time[44], rdtsc());
 	int ret;
 	atomic_inc(&single_exit_array[44]);
 	if (likely(fasteoi)) {
@@ -5320,7 +5320,7 @@ static int handle_apic_access(struct kvm_vcpu *vcpu)
 
 static int handle_apic_eoi_induced(struct kvm_vcpu *vcpu)
 {
-	atomic_set(&e_time[45], rdtsc());
+	atomic_set(&s_time[45], rdtsc());
 	atomic_inc(&single_exit_array[45]);
 	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	int vector = exit_qualification & 0xff;
@@ -5335,7 +5335,7 @@ static int handle_apic_eoi_induced(struct kvm_vcpu *vcpu)
 
 static int handle_apic_write(struct kvm_vcpu *vcpu)
 {
-	atomic_set(&e_time[56], rdtsc());
+	atomic_set(&s_time[56], rdtsc());
 	atomic_inc(&single_exit_array[56]);
 	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	u32 offset = exit_qualification & 0xfff;
@@ -5350,7 +5350,7 @@ static int handle_apic_write(struct kvm_vcpu *vcpu)
 
 static int handle_task_switch(struct kvm_vcpu *vcpu)
 {
-	atomic_set(&e_time[9], rdtsc());
+	atomic_set(&s_time[9], rdtsc());
 	int ret;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long exit_qualification;
@@ -5413,7 +5413,7 @@ static int handle_task_switch(struct kvm_vcpu *vcpu)
 
 static int handle_ept_violation(struct kvm_vcpu *vcpu)
 {
-	atomic_set(&e_time[48], rdtsc());
+	atomic_set(&s_time[48], rdtsc());
 	int ret;
 	unsigned long exit_qualification;
 	gpa_t gpa;
@@ -5463,7 +5463,7 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 
 static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 {
-	atomic_set(&e_time[49], rdtsc());
+	atomic_set(&s_time[49], rdtsc());
 	int ret;
 	gpa_t gpa;
 
@@ -5492,7 +5492,7 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 
 static int handle_nmi_window(struct kvm_vcpu *vcpu)
 {
-	atomic_set(&e_time[8], rdtsc());
+	atomic_set(&s_time[8], rdtsc());
 	atomic_inc(&single_exit_array[8]);
 	WARN_ON_ONCE(!enable_vnmi);
 	exec_controls_clearbit(to_vmx(vcpu), CPU_BASED_VIRTUAL_NMI_PENDING);
