@@ -69,10 +69,12 @@ extern atomic_t total_exit;
 extern atomic_t start_time;
 extern atomic_t end_time;
 extern atomic_t diff_time;
+extern u64 total_time;
 extern atomic_t single_exit_array[69];
 extern atomic_t s_time[69];
 extern atomic_t e_time[69];
 extern atomic_t single_exit_diff[69];
+extern u64 single_exit_total[69];
 
 static const struct x86_cpu_id vmx_cpu_id[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_VMX),
@@ -4603,6 +4605,7 @@ static int handle_machine_check(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[41], rdtsc());
 	atomic_sub(atomic_read(&s_time[41]), &e_time[41]);
 	atomic_set(&single_exit_diff[41], atomic_read(&e_time[41]));
+	single_exit_total[41] = single_exit_total[41] + atomic_read(&single_exit_diff[41]);
 	return 1;
 }
 
@@ -4625,6 +4628,7 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[0], rdtsc());
 		atomic_sub(atomic_read(&s_time[0]), &e_time[0]);
 		atomic_set(&single_exit_diff[0], atomic_read(&e_time[0]));
+		single_exit_total[0] = single_exit_total[0] + atomic_read(&single_exit_diff[0]);
 		return 1; /* handled by handle_exception_nmi_irqoff() */
 	}
 	if (is_invalid_opcode(intr_info)){
@@ -4632,6 +4636,7 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[0], rdtsc());
 		atomic_sub(atomic_read(&s_time[0]), &e_time[0]);
 		atomic_set(&single_exit_diff[0], atomic_read(&e_time[0]));
+		single_exit_total[0] = single_exit_total[0] + atomic_read(&single_exit_diff[0]);
 		return ret;
 	}
 
@@ -4652,12 +4657,14 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 			atomic_set(&e_time[0], rdtsc());
 			atomic_sub(atomic_read(&s_time[0]), &e_time[0]);
 			atomic_set(&single_exit_diff[0], atomic_read(&e_time[0]));
+			single_exit_total[0] = single_exit_total[0] + atomic_read(&single_exit_diff[0]);
 			return 1;
 		}
 		ret = kvm_emulate_instruction(vcpu, EMULTYPE_VMWARE_GP);
 		atomic_set(&e_time[0], rdtsc());
 		atomic_sub(atomic_read(&s_time[0]), &e_time[0]);
 		atomic_set(&single_exit_diff[0], atomic_read(&e_time[0]));
+		single_exit_total[0] = single_exit_total[0] + atomic_read(&single_exit_diff[0]);
 		return ret;	
 	}
 
@@ -4677,6 +4684,7 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[0], rdtsc());
 		atomic_sub(atomic_read(&s_time[0]), &e_time[0]);
 		atomic_set(&single_exit_diff[0], atomic_read(&e_time[0]));
+		single_exit_total[0] = single_exit_total[0] + atomic_read(&single_exit_diff[0]);
 		return 0;
 	}
 
@@ -4688,6 +4696,7 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[0], rdtsc());
 		atomic_sub(atomic_read(&s_time[0]), &e_time[0]);
 		atomic_set(&single_exit_diff[0], atomic_read(&e_time[0]));
+		single_exit_total[0] = single_exit_total[0] + atomic_read(&single_exit_diff[0]);
 		return ret;	
 	}
 
@@ -4698,6 +4707,7 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[0], rdtsc());
 		atomic_sub(atomic_read(&s_time[0]), &e_time[0]);
 		atomic_set(&single_exit_diff[0], atomic_read(&e_time[0]));
+		single_exit_total[0] = single_exit_total[0] + atomic_read(&single_exit_diff[0]);
 		return ret;	
 	}
 	switch (ex_no) {
@@ -4706,6 +4716,7 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[0], rdtsc());
 		atomic_sub(atomic_read(&s_time[0]), &e_time[0]);
 		atomic_set(&single_exit_diff[0], atomic_read(&e_time[0]));
+		single_exit_total[0] = single_exit_total[0] + atomic_read(&single_exit_diff[0]);
 		return 1;
 	case DB_VECTOR:
 		dr6 = vmcs_readl(EXIT_QUALIFICATION);
@@ -4720,6 +4731,7 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 			atomic_set(&e_time[0], rdtsc());
 			atomic_sub(atomic_read(&s_time[0]), &e_time[0]);
 			atomic_set(&single_exit_diff[0], atomic_read(&e_time[0]));
+			single_exit_total[0] = single_exit_total[0] + atomic_read(&single_exit_diff[0]);
 			return 1;
 		}
 		kvm_run->debug.arch.dr6 = dr6 | DR6_FIXED_1;
@@ -4747,6 +4759,7 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[0], rdtsc());
 	atomic_sub(atomic_read(&s_time[0]), &e_time[0]);
 	atomic_set(&single_exit_diff[0], atomic_read(&e_time[0]));
+	single_exit_total[0] = single_exit_total[0] + atomic_read(&single_exit_diff[0]);
 	return 0;
 }
 
@@ -4758,6 +4771,7 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[1], rdtsc());
 	atomic_sub(atomic_read(&s_time[1]), &e_time[1]);
 	atomic_set(&single_exit_diff[1], atomic_read(&e_time[1]));
+	single_exit_total[1] = single_exit_total[1] + atomic_read(&single_exit_diff[1]);
 	return 1;
 }
 
@@ -4770,6 +4784,7 @@ static int handle_triple_fault(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[2], rdtsc());
 	atomic_sub(atomic_read(&s_time[2]), &e_time[2]);
 	atomic_set(&single_exit_diff[2], atomic_read(&e_time[2]));
+	single_exit_total[2] = single_exit_total[2] + atomic_read(&single_exit_diff[2]);
 	return 0;
 }
 
@@ -4790,6 +4805,7 @@ static int handle_io(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[30], rdtsc());
 		atomic_sub(atomic_read(&s_time[30]), &e_time[30]);
 		atomic_set(&single_exit_diff[30], atomic_read(&e_time[30]));
+		single_exit_total[30] = single_exit_total[30] + atomic_read(&single_exit_diff[30]);
 		return ret;	
 	}
 
@@ -4801,6 +4817,7 @@ static int handle_io(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[30], rdtsc());
 	atomic_sub(atomic_read(&s_time[30]), &e_time[30]);
 	atomic_set(&single_exit_diff[30], atomic_read(&e_time[30]));
+	single_exit_total[30] = single_exit_total[30] + atomic_read(&single_exit_diff[30]);
 	return ret;
 }
 
@@ -4881,6 +4898,8 @@ static int handle_desc(struct kvm_vcpu *vcpu)
 	atomic_sub(atomic_read(&s_time[47]), &e_time[47]);
 	atomic_set(&single_exit_diff[46], atomic_read(&e_time[46]));
 	atomic_set(&single_exit_diff[47], atomic_read(&e_time[47]));
+	single_exit_total[46] = single_exit_total[46] + atomic_read(&single_exit_diff[46]);
+	single_exit_total[47] = single_exit_total[47] + atomic_read(&single_exit_diff[47]);
 	return ret;
 }
 
@@ -4908,6 +4927,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 			atomic_set(&e_time[28], rdtsc());
 			atomic_sub(atomic_read(&s_time[28]), &e_time[28]);
 			atomic_set(&single_exit_diff[28], atomic_read(&e_time[28]));
+			single_exit_total[28] = single_exit_total[28] + atomic_read(&single_exit_diff[28]);
 			return ret1;
 		case 3:
 			WARN_ON_ONCE(enable_unrestricted_guest);
@@ -4916,6 +4936,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 			atomic_set(&e_time[28], rdtsc());
 			atomic_sub(atomic_read(&s_time[28]), &e_time[28]);
 			atomic_set(&single_exit_diff[28], atomic_read(&e_time[28]));
+			single_exit_total[28] = single_exit_total[28] + atomic_read(&single_exit_diff[28]);
 			return ret1;
 		case 4:
 			err = handle_set_cr4(vcpu, val);
@@ -4923,6 +4944,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 			atomic_set(&e_time[28], rdtsc());
 			atomic_sub(atomic_read(&s_time[28]), &e_time[28]);
 			atomic_set(&single_exit_diff[28], atomic_read(&e_time[28]));
+			single_exit_total[28] = single_exit_total[28] + atomic_read(&single_exit_diff[28]);
 			return ret1;
 		case 8: {
 				u8 cr8_prev = kvm_get_cr8(vcpu);
@@ -4933,12 +4955,14 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 					atomic_set(&e_time[28], rdtsc());
 					atomic_sub(atomic_read(&s_time[28]), &e_time[28]);
 					atomic_set(&single_exit_diff[28], atomic_read(&e_time[28]));
+					single_exit_total[28] = single_exit_total[28] + atomic_read(&single_exit_diff[28]);
 					return ret;
 				}
 				if (cr8_prev <= cr8){
 					atomic_set(&e_time[28], rdtsc());
 					atomic_sub(atomic_read(&s_time[28]), &e_time[28]);
 					atomic_set(&single_exit_diff[28], atomic_read(&e_time[28]));
+					single_exit_total[28] = single_exit_total[28] + atomic_read(&single_exit_diff[28]);
 					return ret;
 				}					
 				/*
@@ -4950,6 +4974,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 				atomic_set(&e_time[28], rdtsc());
 				atomic_sub(atomic_read(&s_time[28]), &e_time[28]);
 				atomic_set(&single_exit_diff[28], atomic_read(&e_time[28]));
+				single_exit_total[28] = single_exit_total[28] + atomic_read(&single_exit_diff[28]);
 				return 0;
 			}
 		}
@@ -4962,6 +4987,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[28], rdtsc());
 		atomic_sub(atomic_read(&s_time[28]), &e_time[28]);
 		atomic_set(&single_exit_diff[28], atomic_read(&e_time[28]));
+		single_exit_total[28] = single_exit_total[28] + atomic_read(&single_exit_diff[28]);
 		return ret1;
 	case 1: /*mov from cr*/
 		switch (cr) {
@@ -4974,6 +5000,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 			atomic_set(&e_time[28], rdtsc());
 			atomic_sub(atomic_read(&s_time[28]), &e_time[28]);
 			atomic_set(&single_exit_diff[28], atomic_read(&e_time[28]));
+			single_exit_total[28] = single_exit_total[28] + atomic_read(&single_exit_diff[28]);
 			return ret1;		
 		case 8:
 			val = kvm_get_cr8(vcpu);
@@ -4983,6 +5010,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 			atomic_set(&e_time[28], rdtsc());
 			atomic_sub(atomic_read(&s_time[28]), &e_time[28]);
 			atomic_set(&single_exit_diff[28], atomic_read(&e_time[28]));
+			single_exit_total[28] = single_exit_total[28] + atomic_read(&single_exit_diff[28]);
 			return ret1;		
 		}
 		break;
@@ -4994,6 +5022,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[28], rdtsc());
 		atomic_sub(atomic_read(&s_time[28]), &e_time[28]);
 		atomic_set(&single_exit_diff[28], atomic_read(&e_time[28]));
+		single_exit_total[28] = single_exit_total[28] + atomic_read(&single_exit_diff[28]);
 		return ret1;
 	default:
 		break;
@@ -5004,6 +5033,7 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[28], rdtsc());
 	atomic_sub(atomic_read(&s_time[28]), &e_time[28]);
 	atomic_set(&single_exit_diff[28], atomic_read(&e_time[28]));
+	single_exit_total[28] = single_exit_total[28] + atomic_read(&single_exit_diff[28]);
 	return 0;
 }
 
@@ -5021,6 +5051,7 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[29], rdtsc());
 		atomic_sub(atomic_read(&s_time[29]), &e_time[29]);
 		atomic_set(&single_exit_diff[29], atomic_read(&e_time[29]));
+		single_exit_total[29] = single_exit_total[29] + atomic_read(&single_exit_diff[29]);
 		return 1;
 	}
 	/* Do not handle if the CPL > 0, will trigger GP on re-entry */
@@ -5028,6 +5059,7 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[29], rdtsc());
 		atomic_sub(atomic_read(&s_time[29]), &e_time[29]);
 		atomic_set(&single_exit_diff[29], atomic_read(&e_time[29]));
+		single_exit_total[29] = single_exit_total[29] + atomic_read(&single_exit_diff[29]);
 		return 1;
 	}
 	dr7 = vmcs_readl(GUEST_DR7);
@@ -5046,6 +5078,7 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 			atomic_set(&e_time[29], rdtsc());
 			atomic_sub(atomic_read(&s_time[29]), &e_time[29]);
 			atomic_set(&single_exit_diff[29], atomic_read(&e_time[29]));
+			single_exit_total[29] = single_exit_total[29] + atomic_read(&single_exit_diff[29]);
 			return 0;
 		} else {
 			vcpu->arch.dr6 &= ~DR_TRAP_BITS;
@@ -5054,6 +5087,7 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 			atomic_set(&e_time[29], rdtsc());
 			atomic_sub(atomic_read(&s_time[29]), &e_time[29]);
 			atomic_set(&single_exit_diff[29], atomic_read(&e_time[29]));
+			single_exit_total[29] = single_exit_total[29] + atomic_read(&single_exit_diff[29]);
 			return 1;
 		}
 	}
@@ -5070,6 +5104,7 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[29], rdtsc());
 		atomic_sub(atomic_read(&s_time[29]), &e_time[29]);
 		atomic_set(&single_exit_diff[29], atomic_read(&e_time[29]));
+		single_exit_total[29] = single_exit_total[29] + atomic_read(&single_exit_diff[29]);
 		return 1;
 	}
 
@@ -5081,6 +5116,7 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 			atomic_set(&e_time[29], rdtsc());
 			atomic_sub(atomic_read(&s_time[29]), &e_time[29]);
 			atomic_set(&single_exit_diff[29], atomic_read(&e_time[29]));
+			single_exit_total[29] = single_exit_total[29] + atomic_read(&single_exit_diff[29]);
 			return 1;
 		}
 		kvm_register_write(vcpu, reg, val);
@@ -5089,12 +5125,14 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 			atomic_set(&e_time[29], rdtsc());
 			atomic_sub(atomic_read(&s_time[29]), &e_time[29]);
 			atomic_set(&single_exit_diff[29], atomic_read(&e_time[29]));
+			single_exit_total[29] = single_exit_total[29] + atomic_read(&single_exit_diff[29]);
 			return 1;
 		}
 	ret = kvm_skip_emulated_instruction(vcpu);
 	atomic_set(&e_time[29], rdtsc());
 	atomic_sub(atomic_read(&s_time[29]), &e_time[29]);
 	atomic_set(&single_exit_diff[29], atomic_read(&e_time[29]));
+	single_exit_total[29] = single_exit_total[29] + atomic_read(&single_exit_diff[29]);
 	return ret;
 }
 
@@ -5134,6 +5172,7 @@ static int handle_cpuid(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[10], rdtsc());
 	atomic_sub(atomic_read(&s_time[10]), &e_time[10]);
 	atomic_set(&single_exit_diff[10], atomic_read(&e_time[10]));
+	single_exit_total[10] = single_exit_total[10] + atomic_read(&single_exit_diff[10]);
 	return ret;
 }
 
@@ -5146,6 +5185,7 @@ static int handle_rdmsr(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[31], rdtsc());
 	atomic_sub(atomic_read(&s_time[31]), &e_time[31]);
 	atomic_set(&single_exit_diff[31], atomic_read(&e_time[31]));
+	single_exit_total[31] = single_exit_total[31] + atomic_read(&single_exit_diff[31]);
 	return ret;
 }
 
@@ -5158,6 +5198,7 @@ static int handle_wrmsr(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[32], rdtsc());
 	atomic_sub(atomic_read(&s_time[32]), &e_time[32]);
 	atomic_set(&single_exit_diff[32], atomic_read(&e_time[32]));
+	single_exit_total[32] = single_exit_total[32] + atomic_read(&single_exit_diff[32]);
 	return ret;
 }
 
@@ -5169,6 +5210,7 @@ static int handle_tpr_below_threshold(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[43], rdtsc());
 	atomic_sub(atomic_read(&s_time[43]), &e_time[43]);
 	atomic_set(&single_exit_diff[43], atomic_read(&e_time[43]));
+	single_exit_total[43] = single_exit_total[43] + atomic_read(&single_exit_diff[43]);
 	return 1;
 }
 
@@ -5184,6 +5226,7 @@ static int handle_interrupt_window(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[7], rdtsc());
 	atomic_sub(atomic_read(&s_time[7]), &e_time[7]);
 	atomic_set(&single_exit_diff[7], atomic_read(&e_time[7]));
+	single_exit_total[7] = single_exit_total[7] + atomic_read(&single_exit_diff[7]);
 	return 1;
 }
 
@@ -5196,6 +5239,7 @@ static int handle_halt(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[12], rdtsc());
 	atomic_sub(atomic_read(&s_time[12]), &e_time[12]);
 	atomic_set(&single_exit_diff[12], atomic_read(&e_time[12]));
+	single_exit_total[12] = single_exit_total[12] + atomic_read(&single_exit_diff[12]);
 	return ret;
 }
 
@@ -5208,6 +5252,7 @@ static int handle_vmcall(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[18], rdtsc());
 	atomic_sub(atomic_read(&s_time[18]), &e_time[18]);
 	atomic_set(&single_exit_diff[18], atomic_read(&e_time[18]));
+	single_exit_total[18] = single_exit_total[18] + atomic_read(&single_exit_diff[18]);
 	return ret;
 }
 
@@ -5220,6 +5265,7 @@ static int handle_invd(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[13], rdtsc());
 	atomic_sub(atomic_read(&s_time[13]), &e_time[13]);
 	atomic_set(&single_exit_diff[13], atomic_read(&e_time[13]));
+	single_exit_total[13] = single_exit_total[13] + atomic_read(&single_exit_diff[13]);
 	return ret;
 }
 
@@ -5235,6 +5281,7 @@ static int handle_invlpg(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[14], rdtsc());
 	atomic_sub(atomic_read(&s_time[14]), &e_time[14]);
 	atomic_set(&single_exit_diff[14], atomic_read(&e_time[14]));
+	single_exit_total[14] = single_exit_total[14] + atomic_read(&single_exit_diff[14]);
 	return ret;
 }
 
@@ -5249,6 +5296,7 @@ static int handle_rdpmc(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[15], rdtsc());
 	atomic_sub(atomic_read(&s_time[15]), &e_time[15]);
 	atomic_set(&single_exit_diff[15], atomic_read(&e_time[15]));
+	single_exit_total[15] = single_exit_total[15] + atomic_read(&single_exit_diff[15]);
 	return ret;
 }
 
@@ -5261,6 +5309,7 @@ static int handle_wbinvd(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[54], rdtsc());
 	atomic_sub(atomic_read(&s_time[54]), &e_time[54]);
 	atomic_set(&single_exit_diff[54], atomic_read(&e_time[54]));
+	single_exit_total[54] = single_exit_total[54] + atomic_read(&single_exit_diff[54]);
 	return ret;
 }
 
@@ -5277,11 +5326,13 @@ static int handle_xsetbv(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[55], rdtsc());
 		atomic_sub(atomic_read(&s_time[55]), &e_time[55]);
 		atomic_set(&single_exit_diff[55], atomic_read(&e_time[55]));
+		single_exit_total[55] = single_exit_total[55] + atomic_read(&single_exit_diff[55]);
 		return ret;
 	}
 	atomic_set(&e_time[55], rdtsc());
 	atomic_sub(atomic_read(&s_time[55]), &e_time[55]);
 	atomic_set(&single_exit_diff[55], atomic_read(&e_time[55]));
+	single_exit_total[55] = single_exit_total[55] + atomic_read(&single_exit_diff[55]);
 	return 1;
 }
 
@@ -5308,6 +5359,7 @@ static int handle_apic_access(struct kvm_vcpu *vcpu)
 			atomic_set(&e_time[44], rdtsc());
 			atomic_sub(atomic_read(&s_time[44]), &e_time[44]);
 			atomic_set(&single_exit_diff[44], atomic_read(&e_time[44]));
+			single_exit_total[44] = single_exit_total[44] + atomic_read(&single_exit_diff[44]);
 			return ret;		
 		}
 	}
@@ -5315,6 +5367,7 @@ static int handle_apic_access(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[44], rdtsc());
 	atomic_sub(atomic_read(&s_time[44]), &e_time[44]);
 	atomic_set(&single_exit_diff[44], atomic_read(&e_time[44]));
+	single_exit_total[44] = single_exit_total[44] + atomic_read(&single_exit_diff[44]);
 	return ret;
 }
 
@@ -5330,6 +5383,7 @@ static int handle_apic_eoi_induced(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[45], rdtsc());
 	atomic_sub(atomic_read(&s_time[45]), &e_time[45]);
 	atomic_set(&single_exit_diff[45], atomic_read(&e_time[45]));
+	single_exit_total[45] = single_exit_total[45] + atomic_read(&single_exit_diff[45]);
 	return 1;
 }
 
@@ -5345,6 +5399,7 @@ static int handle_apic_write(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[56], rdtsc());
 	atomic_sub(atomic_read(&s_time[56]), &e_time[56]);
 	atomic_set(&single_exit_diff[56], atomic_read(&e_time[56]));
+	single_exit_total[56] = single_exit_total[56] + atomic_read(&single_exit_diff[56]);
 	return 1;
 }
 
@@ -5408,6 +5463,7 @@ static int handle_task_switch(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[9], rdtsc());
 	atomic_sub(atomic_read(&s_time[9]), &e_time[9]);
 	atomic_set(&single_exit_diff[9], atomic_read(&e_time[9]));
+	single_exit_total[9] = single_exit_total[9] + atomic_read(&single_exit_diff[9]);
 	return ret;
 }
 
@@ -5458,6 +5514,7 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[48], rdtsc());
 	atomic_sub(atomic_read(&s_time[48]), &e_time[48]);
 	atomic_set(&single_exit_diff[48], atomic_read(&e_time[48]));
+	single_exit_total[48] = single_exit_total[48] + atomic_read(&single_exit_diff[48]);
 	return ret;
 }
 
@@ -5480,6 +5537,7 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[49], rdtsc());
 		atomic_sub(atomic_read(&s_time[49]), &e_time[49]);
 		atomic_set(&single_exit_diff[49], atomic_read(&e_time[49]));
+		single_exit_total[49] = single_exit_total[49] + atomic_read(&single_exit_diff[49]);
 		return ret;
 	}
 
@@ -5487,6 +5545,7 @@ static int handle_ept_misconfig(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[49], rdtsc());
 	atomic_sub(atomic_read(&s_time[49]), &e_time[49]);
 	atomic_set(&single_exit_diff[49], atomic_read(&e_time[49]));
+	single_exit_total[49] = single_exit_total[49] + atomic_read(&single_exit_diff[49]);
 	return ret;
 }
 
@@ -5501,6 +5560,7 @@ static int handle_nmi_window(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[8], rdtsc());
 	atomic_sub(atomic_read(&s_time[8]), &e_time[8]);
 	atomic_set(&single_exit_diff[8], atomic_read(&e_time[8]));
+	single_exit_total[8] = single_exit_total[8] + atomic_read(&single_exit_diff[8]);
 	return 1;
 }
 
@@ -5645,6 +5705,7 @@ static int handle_pause(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[40], rdtsc());
 	atomic_sub(atomic_read(&s_time[40]), &e_time[40]);
 	atomic_set(&single_exit_diff[40], atomic_read(&e_time[40]));
+	single_exit_total[40] = single_exit_total[40] + atomic_read(&single_exit_diff[40]);
 	return ret;
 }
 
@@ -5663,6 +5724,7 @@ static int handle_mwait(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[36], rdtsc());
 	atomic_sub(atomic_read(&s_time[36]), &e_time[36]);
 	atomic_set(&single_exit_diff[36], atomic_read(&e_time[36]));
+	single_exit_total[36] = single_exit_total[36] + atomic_read(&single_exit_diff[36]);
 	return ret;
 }
 
@@ -5679,6 +5741,8 @@ static int handle_invalid_op(struct kvm_vcpu *vcpu)
 	atomic_sub(atomic_read(&s_time[61]), &e_time[61]);
 	atomic_set(&single_exit_diff[57], atomic_read(&e_time[57]));
 	atomic_set(&single_exit_diff[61], atomic_read(&e_time[61]));
+	single_exit_total[57] = single_exit_total[57] + atomic_read(&single_exit_diff[57]);
+	single_exit_total[61] = single_exit_total[61] + atomic_read(&single_exit_diff[61]);
 	return 1;
 }
 
@@ -5689,6 +5753,7 @@ static int handle_monitor_trap(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[37], rdtsc());
 	atomic_sub(atomic_read(&s_time[37]), &e_time[37]);
 	atomic_set(&single_exit_diff[37], atomic_read(&e_time[37]));
+	single_exit_total[37] = single_exit_total[37] + atomic_read(&single_exit_diff[37]);
 	return 1;
 }
 
@@ -5702,6 +5767,7 @@ static int handle_monitor(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[39], rdtsc());
 	atomic_sub(atomic_read(&s_time[39]), &e_time[39]);
 	atomic_set(&single_exit_diff[39], atomic_read(&e_time[39]));
+	single_exit_total[39] = single_exit_total[39] + atomic_read(&single_exit_diff[39]);
 	return ret;
 }
 
@@ -5727,6 +5793,7 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[58], rdtsc());
 		atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
 		atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
+		single_exit_total[58] = single_exit_total[58] + atomic_read(&single_exit_diff[58]);
 		return 1;
 	}
 
@@ -5738,6 +5805,7 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[58], rdtsc());
 		atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
 		atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
+		single_exit_total[58] = single_exit_total[58] + atomic_read(&single_exit_diff[58]);
 		return 1;
 	}
 
@@ -5750,6 +5818,7 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[58], rdtsc());
 		atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
 		atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
+		single_exit_total[58] = single_exit_total[58] + atomic_read(&single_exit_diff[58]);
 		return 1;
 	}
 	if (kvm_read_guest_virt(vcpu, gva, &operand, sizeof(operand), &e)) {
@@ -5757,6 +5826,7 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[58], rdtsc());
 		atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
 		atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
+		single_exit_total[58] = single_exit_total[58] + atomic_read(&single_exit_diff[58]);
 		return 1;
 	}
 
@@ -5765,6 +5835,7 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[58], rdtsc());
 		atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
 		atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
+		single_exit_total[58] = single_exit_total[58] + atomic_read(&single_exit_diff[58]);
 		return 1;
 	}
 
@@ -5778,6 +5849,7 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 			atomic_set(&e_time[58], rdtsc());
 			atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
 			atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
+			single_exit_total[58] = single_exit_total[58] + atomic_read(&single_exit_diff[58]);
 			return 1;
 		}
 		kvm_mmu_invpcid_gva(vcpu, operand.gla, operand.pcid);
@@ -5785,6 +5857,7 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[58], rdtsc());
 		atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
 		atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
+		single_exit_total[58] = single_exit_total[58] + atomic_read(&single_exit_diff[58]);
 		return ret;
 	case INVPCID_TYPE_SINGLE_CTXT:
 		if (!pcid_enabled && (operand.pcid != 0)) {
@@ -5792,6 +5865,7 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 			atomic_set(&e_time[58], rdtsc());
 			atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
 			atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
+			single_exit_total[58] = single_exit_total[58] + atomic_read(&single_exit_diff[58]);
 			return 1;
 		}
 
@@ -5815,6 +5889,7 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[58], rdtsc());
 		atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
 		atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
+		single_exit_total[58] = single_exit_total[58] + atomic_read(&single_exit_diff[58]);
 		return ret;
 	case INVPCID_TYPE_ALL_NON_GLOBAL:
 		/*
@@ -5831,6 +5906,7 @@ static int handle_invpcid(struct kvm_vcpu *vcpu)
 		atomic_set(&e_time[58], rdtsc());
 		atomic_sub(atomic_read(&s_time[58]), &e_time[58]);
 		atomic_set(&single_exit_diff[58], atomic_read(&e_time[58]));
+		single_exit_total[58] = single_exit_total[58] + atomic_read(&single_exit_diff[58]);
 		return ret;
 	default:
 		BUG(); /* We have already checked above that type <= 3 */
@@ -5863,6 +5939,7 @@ static int handle_pml_full(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[62], rdtsc());
 	atomic_sub(atomic_read(&s_time[62]), &e_time[62]);
 	atomic_set(&single_exit_diff[62], atomic_read(&e_time[62]));
+	single_exit_total[62] = single_exit_total[62] + atomic_read(&single_exit_diff[62]);
 	return 1;
 }
 
@@ -5879,6 +5956,7 @@ static int handle_preemption_timer(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[52], rdtsc());
 	atomic_sub(atomic_read(&s_time[52]), &e_time[52]);
 	atomic_set(&single_exit_diff[52], atomic_read(&e_time[52]));
+	single_exit_total[52] = single_exit_total[52] + atomic_read(&single_exit_diff[52]);
 	return 1;
 }
 
@@ -5949,6 +6027,18 @@ static int handle_vmx_instruction(struct kvm_vcpu *vcpu)
 	atomic_set(&single_exit_diff[50], atomic_read(&e_time[50]));
 	atomic_set(&single_exit_diff[53], atomic_read(&e_time[53]));
 	atomic_set(&single_exit_diff[59], atomic_read(&e_time[59]));
+	single_exit_total[19] = single_exit_total[19] + atomic_read(&single_exit_diff[19]);
+	single_exit_total[20] = single_exit_total[20] + atomic_read(&single_exit_diff[20]);
+	single_exit_total[21] = single_exit_total[21] + atomic_read(&single_exit_diff[21]);
+	single_exit_total[22] = single_exit_total[22] + atomic_read(&single_exit_diff[22]);
+	single_exit_total[23] = single_exit_total[23] + atomic_read(&single_exit_diff[23]);
+	single_exit_total[24] = single_exit_total[24] + atomic_read(&single_exit_diff[24]);
+	single_exit_total[25] = single_exit_total[25] + atomic_read(&single_exit_diff[25]);
+	single_exit_total[26] = single_exit_total[26] + atomic_read(&single_exit_diff[26]);
+	single_exit_total[27] = single_exit_total[27] + atomic_read(&single_exit_diff[27]);
+	single_exit_total[50] = single_exit_total[50] + atomic_read(&single_exit_diff[50]);
+	single_exit_total[53] = single_exit_total[53] + atomic_read(&single_exit_diff[53]);
+	single_exit_total[59] = single_exit_total[59] + atomic_read(&single_exit_diff[59]);
 	return 1;
 }
 
@@ -5965,6 +6055,7 @@ static int handle_encls(struct kvm_vcpu *vcpu)
 	atomic_set(&e_time[60], rdtsc());
 	atomic_sub(atomic_read(&s_time[60]), &e_time[60]);
 	atomic_set(&single_exit_diff[60], atomic_read(&e_time[60]));
+	single_exit_total[60] = single_exit_total[60] + atomic_read(&single_exit_diff[60]);
 	return 1;
 }
 
@@ -5994,6 +6085,10 @@ static int handle_unexpected_vmexit(struct kvm_vcpu *vcpu)
 	atomic_set(&single_exit_diff[64], atomic_read(&e_time[64]));
 	atomic_set(&single_exit_diff[67], atomic_read(&e_time[67]));
 	atomic_set(&single_exit_diff[68], atomic_read(&e_time[68]));
+	single_exit_total[63] = single_exit_total[63] + atomic_read(&single_exit_diff[63]);
+	single_exit_total[64] = single_exit_total[64] + atomic_read(&single_exit_diff[64]);
+	single_exit_total[67] = single_exit_total[67] + atomic_read(&single_exit_diff[67]);
+	single_exit_total[68] = single_exit_total[68] + atomic_read(&single_exit_diff[68]);
 	return 1;
 }
 
@@ -6307,11 +6402,11 @@ void dump_vmcs(void)
 
 static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 {
+	atomic_set(&start_time, rdtsc());	
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exit_reason = vmx->exit_reason;
 	u32 vectoring_info = vmx->idt_vectoring_info;
 	atomic_inc(&total_exit);
-	atomic_set(&start_time, rdtsc());
 	int ret;
 
 	trace_kvm_exit(exit_reason, vcpu, KVM_ISA_VMX);
@@ -6332,6 +6427,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		atomic_set(&end_time, rdtsc());
 		atomic_sub(atomic_read(&start_time), &end_time);
 		atomic_set(&diff_time, atomic_read(&end_time));
+		total_time = total_time + atomic_read(&diff_time);
 		return ret;
 	}
 	if (is_guest_mode(vcpu) && nested_vmx_exit_reflected(vcpu, exit_reason)){
@@ -6339,6 +6435,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		atomic_set(&end_time, rdtsc());
 		atomic_sub(atomic_read(&start_time), &end_time);
 		atomic_set(&diff_time, atomic_read(&end_time));
+		total_time = total_time + atomic_read(&diff_time);
 		return ret;
 	}
 	if (exit_reason & VMX_EXIT_REASONS_FAILED_VMENTRY) {
@@ -6349,6 +6446,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		atomic_set(&end_time, rdtsc());
 		atomic_sub(atomic_read(&start_time), &end_time);
 		atomic_set(&diff_time, atomic_read(&end_time));
+		total_time = total_time + atomic_read(&diff_time);
 		return 0;
 	}
 
@@ -6360,6 +6458,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		atomic_set(&end_time, rdtsc());
 		atomic_sub(atomic_read(&start_time), &end_time);
 		atomic_set(&diff_time, atomic_read(&end_time));
+		total_time = total_time + atomic_read(&diff_time);
 		return 0;
 	}
 
@@ -6389,6 +6488,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		atomic_set(&end_time, rdtsc());
 		atomic_sub(atomic_read(&start_time), &end_time);
 		atomic_set(&diff_time, atomic_read(&end_time));
+		total_time = total_time + atomic_read(&diff_time);
 		return 0;
 	}
 
@@ -6417,6 +6517,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		atomic_set(&end_time, rdtsc());
 		atomic_sub(atomic_read(&start_time), &end_time);
 		atomic_set(&diff_time, atomic_read(&end_time));
+		total_time = total_time + atomic_read(&diff_time);
 		return ret;	
 	}else {
 		vcpu_unimpl(vcpu, "vmx: unexpected exit reason 0x%x\n",
@@ -6430,11 +6531,13 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		atomic_set(&end_time, rdtsc());
 		atomic_sub(atomic_read(&start_time), &end_time);
 		atomic_set(&diff_time, atomic_read(&end_time));
+		total_time = total_time + atomic_read(&diff_time);
 		return 0;
 	}
 	atomic_set(&end_time, rdtsc());
 	atomic_sub(atomic_read(&start_time), &end_time);
 	atomic_set(&diff_time, atomic_read(&end_time));
+	total_time = total_time + atomic_read(&diff_time);
 }
 
 /*
