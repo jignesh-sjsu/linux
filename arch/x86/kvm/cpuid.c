@@ -27,22 +27,24 @@
 
 atomic_t total_exit = ATOMIC_INIT(0);
 EXPORT_SYMBOL(total_exit);
-atomic_t diff_time = ATOMIC_INIT(0);
-EXPORT_SYMBOL(diff_time);
-u64 time = 0;
 atomic_t start_time = ATOMIC_INIT(0);
 EXPORT_SYMBOL(start_time);
 atomic_t end_time = ATOMIC_INIT(0);
 EXPORT_SYMBOL(end_time);
+atomic_t diff_time = ATOMIC_INIT(0);
+EXPORT_SYMBOL(diff_time);
+u64 total_time = 0;
+EXPORT_SYMBOL(total_time);
 atomic_t single_exit_array[69] = ATOMIC_INIT(0);
 EXPORT_SYMBOL(single_exit_array);
 atomic_t s_time[69] = ATOMIC_INIT(0);
 EXPORT_SYMBOL(s_time);
 atomic_t e_time[69] = ATOMIC_INIT(0);
 EXPORT_SYMBOL(e_time);
-u64 single_time[69] = {0};
 atomic_t single_exit_diff[69] = ATOMIC_INIT(0);
 EXPORT_SYMBOL(single_exit_diff);
+u64 single_exit_total[69] = {0};
+EXPORT_SYMBOL(single_exit_total);
 
 static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 {
@@ -1077,9 +1079,9 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 		kvm_rcx_write(vcpu, ecx);
 		kvm_rdx_write(vcpu, edx);
 	} else if(eax == 0x4FFFFFFE) {
-		time = time + atomic_read(&diff_time);
-		ecx = time;
-		ebx = (time >> 32);
+		temp = total_time;
+		ecx = temp;
+		ebx = (temp >> 32);
 		kvm_rax_write(vcpu, eax);
 		kvm_rbx_write(vcpu, ebx);
 		kvm_rcx_write(vcpu, ecx);
@@ -1096,9 +1098,8 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 			ecx = 0x00000000;
 			edx = 0x00000000;
 		} else {
-			single_time[ecx] = single_time[ecx] + atomic_read(&single_exit_diff[ecx]);
-			temp = single_time[ecx];			
-			ecx = temp;		
+			temp = single_exit_total[ecx];
+			ecx = temp;
 			ebx = (temp >> 32);
 		}
 		kvm_rax_write(vcpu, eax);
